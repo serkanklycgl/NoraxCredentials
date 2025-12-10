@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(225, 29, 72, 0.22), transparent 30%),
+    radial-gradient(circle at 78% 12%, rgba(244, 63, 94, 0.18), transparent 26%),
+    linear-gradient(145deg, #0b0d12 0%, #0f1117 50%, #0b0c11 100%);
+  color: #e5e7eb;
+  min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 16px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02),
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px,
+      transparent 16px
+    );
+  mask-image: radial-gradient(circle at 20% 20%, black 0, transparent 45%),
+    radial-gradient(circle at 80% 0%, black 0, transparent 35%);
+  opacity: 0.6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #e11d48 transparent;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(225, 29, 72, 0.8), rgba(225, 29, 72, 0.5));
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(225, 29, 72, 1), rgba(225, 29, 72, 0.7));
+}
+
+.glass {
+  @apply bg-slate-900/60 backdrop-blur-md border border-white/5;
+}
+
+.card {
+  @apply glass rounded-2xl shadow-lg shadow-primary/15;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-semibold transition-all;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary-light shadow-glow;
+}
+
+.btn-ghost {
+  @apply bg-white/5 text-slate-200 hover:bg-white/10;
+}
+
+.surface-strong {
+  @apply border border-white/5 bg-white/5 backdrop-blur-xl rounded-3xl;
+}

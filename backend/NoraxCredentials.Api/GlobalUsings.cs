@@ -1,0 +1,14 @@
+global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.EntityFrameworkCore;
+global using NoraxCredentials.Api.Data;
+global using NoraxCredentials.Api.Models;
+global using NoraxCredentials.Api.DTOs;
+global using NoraxCredentials.Api.Services;
+global using NoraxCredentials.Api.Configurations;
+global using NoraxCredentials.Api.Middleware;
+global using Microsoft.AspNetCore.Authorization;
+global using System.Security.Claims;
+global using System.IdentityModel.Tokens.Jwt;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.IdentityModel.Tokens;
+global using System.Text;
