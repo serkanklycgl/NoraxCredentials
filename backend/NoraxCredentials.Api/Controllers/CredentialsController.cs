@@ -52,6 +52,11 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
     [HttpPost]
     public async Task<ActionResult<CredentialResponseDto>> Create([FromBody] CreateCredentialDto dto)
     {
+        if (!User.IsInRole("Admin"))
+        {
+            return Forbid();
+        }
+
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
         if (!categoryExists)
         {

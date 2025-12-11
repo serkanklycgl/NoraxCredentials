@@ -811,9 +811,9 @@ function App() {
                       <div className="flex items-center gap-3">
                         <Tag tone="muted">{filteredCredentials.length} kayıt</Tag>
                         <button
-                          disabled={!selectedCategoryId}
+                          disabled={!selectedCategoryId || !isAdmin}
                           onClick={() => {
-                            if (!selectedCategoryId) return;
+                            if (!selectedCategoryId || !isAdmin) return;
                             setEditingCredential({
                               id: '',
                               categoryId: selectedCategoryId,
@@ -835,7 +835,8 @@ function App() {
                             });
                             setModalOpen(true);
                           }}
-                          className="btn btn-primary disabled:opacity-50"
+                          className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={isAdmin ? undefined : 'Yalnızca admin yeni kayıt oluşturabilir'}
                         >
                           <HiOutlinePlus /> Yeni kayıt
                         </button>
