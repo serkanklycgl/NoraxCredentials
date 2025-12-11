@@ -20,9 +20,19 @@ export type Credential = {
   accountEmail?: string | null;
   accountRole?: string | null;
   serverVpnRequired?: boolean | null;
+  files?: CredentialFile[] | null;
   canViewSecret?: boolean | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+};
+
+export type CredentialFile = {
+  id: string;
+  credentialId: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  uploadedAtUtc: string;
 };
 
 export type UserProfile = {

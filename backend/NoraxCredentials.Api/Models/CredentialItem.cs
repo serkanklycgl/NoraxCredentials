@@ -59,4 +59,5 @@ public class CredentialItem
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public ICollection<UserCredentialAccess> CredentialAccesses { get; set; } = new List<UserCredentialAccess>();
+    public ICollection<CredentialFile> Files { get; set; } = new List<CredentialFile>();
 }

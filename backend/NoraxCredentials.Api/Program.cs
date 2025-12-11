@@ -53,6 +53,23 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.EnsureCreatedAsync();
+
+    // Make sure legacy inline file storage column is removed and disk path column exists
+    const string fixFilesSql = @"
+IF OBJECT_ID('dbo.CredentialFiles', 'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH('dbo.CredentialFiles', 'FilePath') IS NULL
+    BEGIN
+        ALTER TABLE [dbo].[CredentialFiles] ADD [FilePath] NVARCHAR(400) NOT NULL CONSTRAINT DF_CredentialFiles_FilePath DEFAULT '';
+    END
+
+    IF COL_LENGTH('dbo.CredentialFiles', 'Data') IS NOT NULL
+    BEGIN
+        ALTER TABLE [dbo].[CredentialFiles] DROP COLUMN [Data];
+    END
+END
+";
+    await db.Database.ExecuteSqlRawAsync(fixFilesSql);
 }
 
 app.UseSwagger();

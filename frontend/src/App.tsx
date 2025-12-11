@@ -10,8 +10,11 @@ import {
   updateManagedUser,
   deleteManagedUser,
   updateUserAccess,
+  uploadCredentialFile,
+  deleteCredentialFile,
+  downloadCredentialFile,
 } from '@/api/client';
-import { Category, Credential, ManagedUser } from '@/types';
+import { Category, Credential, ManagedUser, CredentialFile } from '@/types';
 import { Modal } from '@/components/Modal';
 import { StatCard } from '@/components/StatCard';
 import { Tag } from '@/components/Tag';
@@ -48,6 +51,7 @@ type CredentialForm = {
   accountEmail?: string;
   accountRole?: string;
   serverVpnRequired?: boolean;
+  files?: CredentialFile[];
 };
 
 type UserForm = {
@@ -61,6 +65,7 @@ type UserForm = {
 const INTERNAL_CATEGORY_ID = '5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a';
 const SERVER_CATEGORY_ID = '70763946-c3b3-4518-aba0-2d09f5068e17';
 const EXTERNAL_CATEGORY_ID = '1510d449-f3ae-4ec9-97a7-efb4d7741d97';
+const VPN_CATEGORY_ID = '0c3a5a6a-6c9f-4c7c-8f6a-7c5f12b6c111';
 
 const initialCredentialForm: CredentialForm = {
   categoryId: '',
@@ -77,6 +82,7 @@ const initialCredentialForm: CredentialForm = {
   accountEmail: '',
   accountRole: '',
   serverVpnRequired: false,
+  files: [],
 };
 
 const initialUserForm: UserForm = {
@@ -119,6 +125,7 @@ function App() {
   const [userForm, setUserForm] = useState<UserForm>(initialUserForm);
   const [usersLoading, setUsersLoading] = useState(false);
   const [accessCredentials, setAccessCredentials] = useState<Credential[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,6 +168,13 @@ function App() {
       name.includes('3.') ||
       name.includes('üçüncü') ||
       name.includes('ucuncu')
+    );
+  }, [selectedCategory]);
+  const isVpnCategory = useMemo(() => {
+    const name = selectedCategory?.name.toLowerCase() ?? '';
+    return (
+      selectedCategory?.id === VPN_CATEGORY_ID ||
+      name.includes('vpn')
     );
   }, [selectedCategory]);
 
@@ -240,6 +254,7 @@ function App() {
     if (activePage !== 'credentials') {
       setModalOpen(false);
       setEditingCredential(null);
+      setPendingFiles([]);
     }
   }, [activePage]);
 
@@ -304,8 +319,16 @@ function App() {
     try {
       const payload = buildPayload({ ...credentialForm, categoryId: selectedCategoryId, name: nameForSave });
       const created = await createCredential(payload);
-      setCredentials((prev) => [created, ...prev]);
+      let updatedCreated = created;
+      if (isVpnCategory && pendingFiles.length) {
+        const uploads = await Promise.all(
+          pendingFiles.map(async (file) => uploadCredentialFile(created.id, file)),
+        );
+        updatedCreated = { ...created, files: uploads };
+      }
+      setCredentials((prev) => [updatedCreated, ...prev]);
       setCredentialForm({ ...initialCredentialForm, categoryId: selectedCategoryId });
+      setPendingFiles([]);
     } catch (err) {
       console.error(err);
       setError('Kayıt oluşturulamadı.');
@@ -340,9 +363,18 @@ function App() {
         serverVpnRequired: editingCredential.serverVpnRequired,
       });
       const updated = await updateCredential(id, payload);
-      setCredentials((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      let updatedWithFiles = updated;
+      if (isVpnCategory && pendingFiles.length) {
+        const uploads = await Promise.all(
+          pendingFiles.map(async (file) => uploadCredentialFile(id, file)),
+        );
+        const mergedFiles = [...(updated.files ?? []), ...uploads];
+        updatedWithFiles = { ...updated, files: mergedFiles };
+      }
+      setCredentials((prev) => prev.map((c) => (c.id === id ? updatedWithFiles : c)));
       setModalOpen(false);
       setEditingCredential(null);
+      setPendingFiles([]);
     } catch (err) {
       console.error(err);
       setError('Kayıt güncellenemedi.');
@@ -357,6 +389,39 @@ function App() {
     } catch (err) {
       console.error(err);
       setError('Kayıt silinemedi.');
+    }
+  };
+
+  const handleDeleteFile = async (credentialId: string, fileId: string) => {
+    try {
+      await deleteCredentialFile(credentialId, fileId);
+      setCredentials((prev) =>
+        prev.map((c) =>
+          c.id === credentialId
+            ? { ...c, files: (c.files ?? []).filter((f) => f.id !== fileId) }
+            : c,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+      setError('Dosya silinemedi.');
+    }
+  };
+
+  const handleDownloadFile = async (credentialId: string, file: CredentialFile) => {
+    try {
+      const blob = await downloadCredentialFile(credentialId, file.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError('Dosya indirilemedi.');
     }
   };
 
@@ -390,9 +455,17 @@ function App() {
       };
       const normalizedPayload = buildPayload(payloadForCreate);
       const created = await createCredential(normalizedPayload);
-      setCredentials((prev) => [created, ...prev]);
+      let createdWithFiles = created;
+      if (isVpnCategory && pendingFiles.length) {
+        const uploads = await Promise.all(
+          pendingFiles.map(async (file) => uploadCredentialFile(created.id, file)),
+        );
+        createdWithFiles = { ...created, files: uploads };
+      }
+      setCredentials((prev) => [createdWithFiles, ...prev]);
       setModalOpen(false);
       setEditingCredential(null);
+      setPendingFiles([]);
     } catch (err) {
       console.error(err);
       setError('Kayıt oluşturulamadı.');
@@ -844,11 +917,11 @@ function App() {
                       </div>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-white/10">
-                        <thead className="bg-white/5">
-                          <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
-                            {isInternalCategory ? (
-                              <>
+          <table className="min-w-full divide-y divide-white/10">
+            <thead className="bg-white/5">
+              <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
+                {isInternalCategory ? (
+                  <>
                                 <th className="px-4 py-3">Uygulama</th>
                                 <th className="px-4 py-3">Link</th>
                                 <th className="px-4 py-3">E-Posta</th>
@@ -857,18 +930,29 @@ function App() {
                                 <th className="px-4 py-3">Güncel</th>
                                 <th className="px-4 py-3 text-right">Aksiyon</th>
                               </>
-                            ) : isServerCategory ? (
-                              <>
-                                <th className="px-4 py-3">Sunucu</th>
-                                <th className="px-4 py-3">HOST / URL</th>
-                                <th className="px-4 py-3">Kullanıcı</th>
-                                <th className="px-4 py-3">Şifre</th>
-                                <th className="px-4 py-3">VPN</th>
-                                <th className="px-4 py-3">Notlar</th>
-                                <th className="px-4 py-3">Güncel</th>
-                                <th className="px-4 py-3 text-right">Aksiyon</th>
-                              </>
-                            ) : isExternalCategory ? (
+                  ) : isServerCategory ? (
+                    <>
+                      <th className="px-4 py-3">Sunucu</th>
+                      <th className="px-4 py-3">HOST / URL</th>
+                      <th className="px-4 py-3">Kullanıcı</th>
+                      <th className="px-4 py-3">Şifre</th>
+                      <th className="px-4 py-3">VPN</th>
+                      <th className="px-4 py-3">Notlar</th>
+                      <th className="px-4 py-3">Güncel</th>
+                      <th className="px-4 py-3 text-right">Aksiyon</th>
+                    </>
+                  ) : isVpnCategory ? (
+                    <>
+                      <th className="px-4 py-3">Ad</th>
+                      <th className="px-4 py-3">Sağlayıcı</th>
+                      <th className="px-4 py-3">Kullanıcı</th>
+                      <th className="px-4 py-3">Şifre</th>
+                      <th className="px-4 py-3">Dosyalar</th>
+                      <th className="px-4 py-3">Notlar</th>
+                      <th className="px-4 py-3">Güncel</th>
+                      <th className="px-4 py-3 text-right">Aksiyon</th>
+                    </>
+                  ) : isExternalCategory ? (
                               <>
                                 <th className="px-4 py-3">Ad</th>
                                 <th className="px-4 py-3">Sağlayıcı</th>
@@ -1177,6 +1261,93 @@ function App() {
                                   </div>
                                 </td>
                               </>
+                            ) : isVpnCategory ? (
+                              <>
+                                <td className="px-4 py-3">
+                                  <div className="font-semibold text-white">{cred.name}</div>
+                                  <p className="text-xs text-slate-400">{cred.appName}</p>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-300">
+                                  {cred.appName || '—'}
+                                </td>
+                                <td className="px-4 py-3">{revealed ? cred.username ?? '—' : hiddenLabel}</td>
+                                <td className="px-4 py-3 text-xs text-slate-100">
+                                  {cred.password ? (
+                                    <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
+                                      {revealed ? cred.password : hiddenLabel}
+                                    </span>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-200">
+                                  <div className="flex flex-wrap gap-2">
+                                    {(cred.files ?? []).map((f) => (
+                                      <div key={f.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-200">
+                                        <button
+                                          className="hover:text-primary-light"
+                                          onClick={() => handleDownloadFile(cred.id, f)}
+                                          title="İndir"
+                                        >
+                                          {f.fileName}
+                                        </button>
+                                        {isAdmin ? (
+                                          <button
+                                            className="text-red-300 hover:text-red-100"
+                                            onClick={() => handleDeleteFile(cred.id, f.id)}
+                                            title="Sil"
+                                          >
+                                            ×
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    ))}
+                                    {cred.files?.length === 0 ? <span className="text-slate-400">—</span> : null}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
+                                  {revealed ? cred.notes ?? '—' : hiddenLabel}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-400">
+                                  {new Date(cred.updatedAtUtc).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      className={revealButtonClass}
+                                      title={revealButtonTitle}
+                                      disabled={!canReveal}
+                                      onClick={toggleReveal}
+                                    >
+                                      {revealed ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                    </button>
+                                    <button
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        setEditingCredential(cred);
+                                        setPendingFiles([]);
+                                        setModalOpen(true);
+                                      }}
+                                      title="Düzenle"
+                                    >
+                                      <HiOutlinePencil className="text-lg" />
+                                    </button>
+                                    <button
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        handleDeleteCredential(cred.id);
+                                      }}
+                                      title="Sil"
+                                    >
+                                      <HiOutlineTrash className="text-lg" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
                             ) : (
                               <>
                                 <td className="px-4 py-3">
@@ -1245,7 +1416,7 @@ function App() {
                         {filteredCredentials.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={isInternalCategory ? 7 : isServerCategory ? 8 : isExternalCategory ? 9 : 7}
+                              colSpan={isInternalCategory ? 7 : isServerCategory ? 8 : isExternalCategory ? 9 : isVpnCategory ? 8 : 7}
                               className="px-4 py-6 text-center text-slate-400"
                             >
                               Henüz kayıt yok. Sağ üstteki <span className="font-semibold text-primary">Yeni Kayıt</span> butonunu kullanın.
@@ -1417,6 +1588,90 @@ function App() {
                       />
                       <span className="text-sm text-white/80">VPN bağlantısı gerekiyor</span>
                     </div>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Notlar</label>
+                    <textarea
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      rows={2}
+                      value={editingCredential.notes ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, notes: e.target.value })}
+                    />
+                  </div>
+                </>
+              ) : isVpnCategory ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Ad</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.name}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Sağlayıcı</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.appName ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, appName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Kullanıcı Adı</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.username ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, username: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Şifre</label>
+                    <input
+                      type="password"
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.password ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Dosyalar</label>
+                    <input
+                      type="file"
+                      multiple
+                      className="block w-full text-sm text-slate-200 file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-light"
+                      onChange={(e) => setPendingFiles(Array.from(e.target.files ?? []))}
+                    />
+                    {pendingFiles.length > 0 ? (
+                      <p className="text-xs text-slate-400">{pendingFiles.length} dosya seçildi</p>
+                    ) : null}
+                    {(editingCredential.files ?? []).length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-slate-400">Mevcut dosyalar:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(editingCredential.files ?? []).map((f) => (
+                            <div key={f.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-slate-200">
+                              <button
+                                type="button"
+                                className="hover:text-primary-light"
+                                onClick={() => handleDownloadFile(editingCredential.id || '', f)}
+                              >
+                                {f.fileName}
+                              </button>
+                              {isAdmin ? (
+                                <button
+                                  type="button"
+                                  className="text-red-300 hover:text-red-100"
+                                  onClick={() => handleDeleteFile(editingCredential.id || '', f.id)}
+                                >
+                                  ×
+                                </button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="space-y-1 md:col-span-2">
                     <label className="text-xs uppercase tracking-wide text-slate-400">Notlar</label>

@@ -96,6 +96,39 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CredentialFiles]') AND type IN (N'U'))
+BEGIN
+    CREATE TABLE [dbo].[CredentialFiles](
+        [Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        [CredentialId] UNIQUEIDENTIFIER NOT NULL,
+        [FileName] NVARCHAR(255) NOT NULL,
+        [ContentType] NVARCHAR(200) NOT NULL,
+        [Size] BIGINT NOT NULL,
+        [FilePath] NVARCHAR(400) NOT NULL,
+        [UploadedAtUtc] DATETIME2 NOT NULL CONSTRAINT DF_CredentialFiles_Uploaded DEFAULT SYSUTCDATETIME()
+    );
+
+    ALTER TABLE [dbo].[CredentialFiles] WITH CHECK ADD CONSTRAINT [FK_CredentialFiles_Credentials] FOREIGN KEY([CredentialId])
+        REFERENCES [dbo].[Credentials] ([Id]) ON DELETE CASCADE;
+
+    CREATE INDEX IX_CredentialFiles_CredentialId ON [dbo].[CredentialFiles]([CredentialId]);
+END
+GO
+
+-- Ensure FilePath column exists if table already created with Data column
+IF COL_LENGTH('dbo.CredentialFiles', 'FilePath') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[CredentialFiles] ADD [FilePath] NVARCHAR(400) NOT NULL CONSTRAINT DF_CredentialFiles_FilePath DEFAULT '';
+END
+GO
+
+-- Drop legacy inline data column if it exists (files are stored on disk now)
+IF COL_LENGTH('dbo.CredentialFiles', 'Data') IS NOT NULL
+BEGIN
+    ALTER TABLE [dbo].[CredentialFiles] DROP COLUMN [Data];
+END
+GO
+
 -- Seed base categories if they do not exist
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '70763946-c3b3-4518-aba0-2d09f5068e17')
     INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
@@ -120,6 +153,12 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '1510d449-f3ae-4ec9
     VALUES ('1510d449-f3ae-4ec9-97a7-efb4d7741d97', N'Dış Uygulamalar', N'ChatGPT, Exchange, İsimTescil vb.', 4);
 ELSE
     UPDATE [dbo].[Categories] SET [Name] = N'Dış Uygulamalar', [SortOrder] = 4 WHERE [Id] = '1510d449-f3ae-4ec9-97a7-efb4d7741d97';
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '0c3a5a6a-6c9f-4c7c-8f6a-7c5f12b6c111')
+    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
+    VALUES ('0c3a5a6a-6c9f-4c7c-8f6a-7c5f12b6c111', N'VPN Bilgileri', N'VPN erişimleri ve istemci dosyaları', 5);
+ELSE
+    UPDATE [dbo].[Categories] SET [Name] = N'VPN Bilgileri', [SortOrder] = 5 WHERE [Id] = '0c3a5a6a-6c9f-4c7c-8f6a-7c5f12b6c111';
 GO
 
 -- Seed admin user (email: admin@norax.com, password: NoraxAdmin!2024)

@@ -4,6 +4,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<CredentialItem> Credentials => Set<CredentialItem>();
+    public DbSet<CredentialFile> CredentialFiles => Set<CredentialFile>();
     public DbSet<User> Users => Set<User>();
     public DbSet<UserCredentialAccess> UserCredentialAccesses => Set<UserCredentialAccess>();
 
@@ -46,6 +47,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasForeignKey(uca => uca.CredentialId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<CredentialFile>()
+            .HasOne(cf => cf.Credential)
+            .WithMany(c => c.Files)
+            .HasForeignKey(cf => cf.CredentialId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<Category>().HasData(
             new Category
             {
@@ -67,6 +74,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 Name = "Dış Uygulamalar",
                 Description = "ChatGPT, Exchange, İsimTescil vb.",
                 SortOrder = 4
+            },
+            new Category
+            {
+                Id = Guid.Parse("0c3a5a6a-6c9f-4c7c-8f6a-7c5f12b6c111"),
+                Name = "VPN Bilgileri",
+                Description = "VPN erişimleri ve istemci dosyaları",
+                SortOrder = 5
             },
             new Category
             {

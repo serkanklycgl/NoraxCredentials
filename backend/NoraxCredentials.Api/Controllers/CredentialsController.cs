@@ -3,8 +3,10 @@ namespace NoraxCredentials.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CredentialsController(ApplicationDbContext db, IEncryptionService encryption) : ControllerBase
+public class CredentialsController(ApplicationDbContext db, IEncryptionService encryption, IWebHostEnvironment env) : ControllerBase
 {
+    private readonly string _uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CredentialResponseDto>>> GetAll([FromQuery] Guid? categoryId = null)
     {
@@ -29,6 +31,7 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
 
         var items = await query
             .OrderByDescending(c => c.UpdatedAtUtc)
+            .Include(c => c.Files)
             .ToListAsync();
 
         return Ok(items.Select(c => MapToDto(c, isAdmin || allowedIds.Contains(c.Id))));
@@ -37,7 +40,7 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CredentialResponseDto>> GetById(Guid id)
     {
-        var entity = await db.Credentials.FindAsync(id);
+        var entity = await db.Credentials.Include(c => c.Files).FirstOrDefaultAsync(c => c.Id == id);
         if (entity is null)
         {
             return NotFound();
@@ -56,6 +59,8 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         {
             return Forbid();
         }
+
+        Directory.CreateDirectory(_uploadsRoot);
 
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
         if (!categoryExists)
@@ -93,7 +98,8 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<CredentialResponseDto>> Update(Guid id, [FromBody] UpdateCredentialDto dto)
     {
-        var item = await db.Credentials.FindAsync(id);
+        Directory.CreateDirectory(_uploadsRoot);
+        var item = await db.Credentials.Include(c => c.Files).FirstOrDefaultAsync(c => c.Id == id);
         if (item is null)
         {
             return NotFound();
@@ -146,7 +152,7 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var item = await db.Credentials.FindAsync(id);
+        var item = await db.Credentials.Include(c => c.Files).FirstOrDefaultAsync(c => c.Id == id);
         if (item is null)
         {
             return NotFound();
@@ -164,6 +170,70 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         }
 
         db.Credentials.Remove(item);
+        await db.SaveChangesAsync();
+        foreach (var file in item.Files)
+        {
+            DeletePhysicalFile(file.FilePath);
+        }
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/files")]
+    public async Task<ActionResult<CredentialFileDto>> UploadFile(Guid id, IFormFile file)
+    {
+        var credential = await db.Credentials.Include(c => c.Files).FirstOrDefaultAsync(c => c.Id == id);
+        if (credential is null) return NotFound();
+
+        if (!await HasAccess(id)) return Forbid();
+
+        if (file is null || file.Length == 0) return BadRequest("Dosya boş.");
+        if (file.Length > 10 * 1024 * 1024) return BadRequest("Dosya 10MB sınırını aşıyor.");
+
+        Directory.CreateDirectory(_uploadsRoot);
+        var safeName = Path.GetFileName(file.FileName);
+        var uniqueName = $"{Guid.NewGuid():N}_{safeName}";
+        var fullPath = Path.Combine(_uploadsRoot, uniqueName);
+        using (var stream = System.IO.File.Create(fullPath))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var entity = new CredentialFile
+        {
+          CredentialId = id,
+          FileName = safeName,
+          ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+          Size = file.Length,
+          FilePath = fullPath,
+          UploadedAtUtc = DateTime.UtcNow
+        };
+
+        db.CredentialFiles.Add(entity);
+        await db.SaveChangesAsync();
+
+        var dto = new CredentialFileDto(entity.Id, entity.CredentialId, entity.FileName, entity.ContentType, entity.Size, entity.UploadedAtUtc);
+        return CreatedAtAction(nameof(DownloadFile), new { id, fileId = entity.Id }, dto);
+    }
+
+    [HttpGet("{id:guid}/files/{fileId:guid}")]
+    public async Task<IActionResult> DownloadFile(Guid id, Guid fileId)
+    {
+        var file = await db.CredentialFiles.FirstOrDefaultAsync(f => f.CredentialId == id && f.Id == fileId);
+        if (file is null) return NotFound();
+        if (!await HasAccess(id)) return Forbid();
+
+        if (!System.IO.File.Exists(file.FilePath)) return NotFound();
+        return PhysicalFile(file.FilePath, file.ContentType, file.FileName);
+    }
+
+    [HttpDelete("{id:guid}/files/{fileId:guid}")]
+    public async Task<IActionResult> DeleteFile(Guid id, Guid fileId)
+    {
+        if (!User.IsInRole("Admin")) return Forbid();
+        var file = await db.CredentialFiles.FirstOrDefaultAsync(f => f.CredentialId == id && f.Id == fileId);
+        if (file is null) return NotFound();
+        DeletePhysicalFile(file.FilePath);
+        db.CredentialFiles.Remove(file);
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -190,6 +260,7 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             entity.AccountEmail,
             entity.AccountRole,
             entity.ServerVpnRequired,
+            entity.Files.Select(f => new CredentialFileDto(f.Id, f.CredentialId, f.FileName, f.ContentType, f.Size, f.UploadedAtUtc)).ToList(),
             canViewSecret,
             entity.CreatedAtUtc,
             entity.UpdatedAtUtc
@@ -200,5 +271,29 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
         return Guid.TryParse(userIdClaim, out var id) ? id : null;
+    }
+
+    private async Task<bool> HasAccess(Guid credentialId)
+    {
+        var userId = GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        if (isAdmin) return true;
+        if (!userId.HasValue) return false;
+        return await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == credentialId && a.UserId == userId.Value);
+    }
+
+    private void DeletePhysicalFile(string path)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(path) && System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
+        }
+        catch
+        {
+            // ignore cleanup errors
+        }
     }
 }

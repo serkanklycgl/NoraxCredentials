@@ -18,9 +18,19 @@ public record CredentialResponseDto(
     string? AccountEmail,
     string? AccountRole,
     bool? ServerVpnRequired,
+    IReadOnlyCollection<CredentialFileDto> Files,
     bool CanViewSecret,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc
+);
+
+public record CredentialFileDto(
+    Guid Id,
+    Guid CredentialId,
+    string FileName,
+    string ContentType,
+    long Size,
+    DateTime UploadedAtUtc
 );
 
 public class CreateCredentialDto

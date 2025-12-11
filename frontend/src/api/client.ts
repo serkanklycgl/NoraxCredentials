@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Category, Credential, UserProfile, AuthResponse, ManagedUser } from '@/types';
+import { Category, Credential, UserProfile, AuthResponse, ManagedUser, CredentialFile } from '@/types';
 
 let dynamicApiKey: string | undefined = import.meta.env.VITE_API_KEY ?? 'norax-dev-key';
 let authToken: string | undefined;
@@ -75,6 +75,24 @@ export const updateCredential = async (
 
 export const deleteCredential = async (id: string) => {
   await api.delete(`/credentials/${id}`);
+};
+
+export const uploadCredentialFile = async (credentialId: string, file: File): Promise<CredentialFile> => {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const { data } = await api.post<CredentialFile>(`/credentials/${credentialId}/files`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const deleteCredentialFile = async (credentialId: string, fileId: string) => {
+  await api.delete(`/credentials/${credentialId}/files/${fileId}`);
+};
+
+export const downloadCredentialFile = async (credentialId: string, fileId: string): Promise<Blob> => {
+  const response = await api.get(`/credentials/${credentialId}/files/${fileId}`, { responseType: 'blob' });
+  return response.data as Blob;
 };
 
 export const loginUser = async (payload: { email: string; password: string }): Promise<AuthResponse> => {
