@@ -30,6 +30,7 @@ import {
   HiOutlineEyeOff,
   HiOutlineUserAdd,
   HiOutlineUserCircle,
+  HiOutlinePlay,
 } from 'react-icons/hi';
 
 type CredentialForm = {
@@ -938,6 +939,35 @@ function App() {
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
+                                    {isServerCategory ? (
+                                      <button
+                                        className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!canReveal || !cred.hostOrUrl ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        title={!canReveal ? 'Yetki yok' : cred.hostOrUrl ? 'RDP dosyası indir' : 'Host tanımsız'}
+                                        disabled={!canReveal || !cred.hostOrUrl}
+                                        onClick={() => {
+                                          if (!canReveal || !cred.hostOrUrl) return;
+                                          const safeName = (cred.name || cred.hostOrUrl || 'server').replace(/[^a-z0-9-_]+/gi, '_');
+                                          const rdpContent = [
+                                            `full address:s:${cred.hostOrUrl}`,
+                                            cred.username ? `username:s:${cred.username}` : null,
+                                            'prompt for credentials:i:1',
+                                          ]
+                                            .filter(Boolean)
+                                            .join('\n');
+                                          const blob = new Blob([rdpContent], { type: 'application/rdp' });
+                                          const url = URL.createObjectURL(blob);
+                                          const link = document.createElement('a');
+                                          link.href = url;
+                                          link.download = `${safeName}.rdp`;
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          link.remove();
+                                          URL.revokeObjectURL(url);
+                                        }}
+                                      >
+                                        <HiOutlinePlay className="text-lg" />
+                                      </button>
+                                    ) : null}
                                     <button
                                       className={revealButtonClass}
                                       title={revealButtonTitle}
@@ -1004,6 +1034,49 @@ function App() {
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
+                                    <button
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!canReveal || !cred.hostOrUrl ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      title={!canReveal ? 'Yetki yok' : cred.hostOrUrl ? 'RDP ile aç' : 'Host tanımsız'}
+                                      disabled={!canReveal || !cred.hostOrUrl}
+                                      onClick={() => {
+                                        if (!canReveal || !cred.hostOrUrl) return;
+                                        const rdpUri = (() => {
+                                          const hostPart = `full address=s:${cred.hostOrUrl}`;
+                                          const userPart = cred.username ? `username=s:${cred.username}` : null;
+                                          const parts = [hostPart, userPart].filter(Boolean).map((p) => p.replace(/ /g, '%20'));
+                                          return `rdp:///?${parts.join('&')}`;
+                                        })();
+                                        const link = document.createElement('a');
+                                        link.href = rdpUri;
+                                        link.target = '_blank';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+
+                                        // Fallback: indirilebilir .rdp dosyası
+                                        setTimeout(() => {
+                                          const safeName = (cred.name || cred.hostOrUrl || 'server').replace(/[^a-z0-9-_]+/gi, '_');
+                                          const rdpContent = [
+                                            `full address:s:${cred.hostOrUrl}`,
+                                            cred.username ? `username:s:${cred.username}` : null,
+                                            'prompt for credentials:i:1',
+                                          ]
+                                            .filter(Boolean)
+                                            .join('\n');
+                                          const blob = new Blob([rdpContent], { type: 'application/rdp' });
+                                          const url = URL.createObjectURL(blob);
+                                          const downloadLink = document.createElement('a');
+                                          downloadLink.href = url;
+                                          downloadLink.download = `${safeName}.rdp`;
+                                          document.body.appendChild(downloadLink);
+                                          downloadLink.click();
+                                          downloadLink.remove();
+                                          URL.revokeObjectURL(url);
+                                        }, 300);
+                                      }}
+                                    >
+                                      <HiOutlinePlay className="text-lg" />
+                                    </button>
                                     <button
                                       className={revealButtonClass}
                                       title={revealButtonTitle}
