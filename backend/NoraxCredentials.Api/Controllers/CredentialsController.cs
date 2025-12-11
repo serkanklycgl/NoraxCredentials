@@ -16,19 +16,22 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
 
         var userId = GetUserId();
         var isAdmin = User.IsInRole("Admin");
+        var allowedIds = new HashSet<Guid>();
         if (!isAdmin && userId.HasValue)
         {
             var userIdValue = userId.Value;
-            query = query.Where(c =>
-                !db.UserCredentialAccesses.Any(a => a.CredentialId == c.Id) ||
-                db.UserCredentialAccesses.Any(a => a.CredentialId == c.Id && a.UserId == userIdValue));
+            var allowed = await db.UserCredentialAccesses
+                .Where(a => a.UserId == userIdValue)
+                .Select(a => a.CredentialId)
+                .ToListAsync();
+            allowedIds = new HashSet<Guid>(allowed);
         }
 
         var items = await query
             .OrderByDescending(c => c.UpdatedAtUtc)
             .ToListAsync();
 
-        return Ok(items.Select(MapToDto));
+        return Ok(items.Select(c => MapToDto(c, isAdmin || allowedIds.Contains(c.Id))));
     }
 
     [HttpGet("{id:guid}")]
@@ -42,21 +45,8 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
 
         var userId = GetUserId();
         var isAdmin = User.IsInRole("Admin");
-        if (!isAdmin && userId.HasValue)
-        {
-            var userIdValue = userId.Value;
-            var hasSpecificAssignments = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id);
-            if (hasSpecificAssignments)
-            {
-                var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userIdValue);
-                if (!allowed)
-                {
-                    return Forbid();
-                }
-            }
-        }
-
-        return MapToDto(entity);
+        var canView = isAdmin || (userId.HasValue && await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userId.Value));
+        return MapToDto(entity, canView);
     }
 
     [HttpPost]
@@ -91,7 +81,7 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         db.Credentials.Add(item);
         await db.SaveChangesAsync();
 
-        var response = MapToDto(item);
+        var response = MapToDto(item, true);
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, response);
     }
 
@@ -142,7 +132,10 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         item.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
-        return MapToDto(item);
+        var currentUserId = GetUserId();
+        var currentIsAdmin = User.IsInRole("Admin");
+        var canView = currentIsAdmin || (currentUserId.HasValue && await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == currentUserId.Value));
+        return MapToDto(item, canView);
     }
 
     [HttpDelete("{id:guid}")]
@@ -158,14 +151,10 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         var isAdmin = User.IsInRole("Admin");
         if (!isAdmin && userId.HasValue)
         {
-            var hasSpecificAssignments = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id);
-            if (hasSpecificAssignments)
+            var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userId.Value);
+            if (!allowed)
             {
-                var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userId.Value);
-                if (!allowed)
-                {
-                    return Forbid();
-                }
+                return Forbid();
             }
         }
 
@@ -174,16 +163,21 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         return NoContent();
     }
 
-    private CredentialResponseDto MapToDto(CredentialItem entity) =>
-        new(
+    private CredentialResponseDto MapToDto(CredentialItem entity, bool canViewSecret = true)
+    {
+        var password = canViewSecret ? encryption.Decrypt(entity.EncryptedPassword) : null;
+        var conn = canViewSecret ? encryption.Decrypt(entity.EncryptedConnectionString) : null;
+        var notes = canViewSecret ? encryption.Decrypt(entity.EncryptedNotes) : null;
+
+        return new CredentialResponseDto(
             entity.Id,
             entity.CategoryId,
             entity.Name,
             entity.HostOrUrl,
             entity.Username,
-            encryption.Decrypt(entity.EncryptedPassword),
-            encryption.Decrypt(entity.EncryptedConnectionString),
-            encryption.Decrypt(entity.EncryptedNotes),
+            password,
+            conn,
+            notes,
             entity.AppName,
             entity.AppLink,
             entity.AccountFirstName,
@@ -191,9 +185,11 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             entity.AccountEmail,
             entity.AccountRole,
             entity.ServerVpnRequired,
+            canViewSecret,
             entity.CreatedAtUtc,
             entity.UpdatedAtUtc
         );
+    }
 
     private Guid? GetUserId()
     {

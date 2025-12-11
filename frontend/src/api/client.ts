@@ -59,7 +59,7 @@ export const getCredentials = async (categoryId?: string): Promise<Credential[]>
 };
 
 export const createCredential = async (
-  payload: Omit<Credential, 'id' | 'createdAtUtc' | 'updatedAtUtc'>,
+  payload: Omit<Credential, 'id' | 'createdAtUtc' | 'updatedAtUtc' | 'canViewSecret'>,
 ) => {
   const { data } = await api.post<Credential>('/credentials', payload);
   return data;
@@ -67,7 +67,7 @@ export const createCredential = async (
 
 export const updateCredential = async (
   id: string,
-  payload: Omit<Credential, 'id' | 'createdAtUtc' | 'updatedAtUtc'>,
+  payload: Omit<Credential, 'id' | 'createdAtUtc' | 'updatedAtUtc' | 'canViewSecret'>,
 ) => {
   const { data } = await api.put<Credential>(`/credentials/${id}`, payload);
   return data;

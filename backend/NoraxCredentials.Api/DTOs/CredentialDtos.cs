@@ -18,6 +18,7 @@ public record CredentialResponseDto(
     string? AccountEmail,
     string? AccountRole,
     bool? ServerVpnRequired,
+    bool CanViewSecret,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc
 );

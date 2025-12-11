@@ -20,6 +20,7 @@ export type Credential = {
   accountEmail?: string | null;
   accountRole?: string | null;
   serverVpnRequired?: boolean | null;
+  canViewSecret?: boolean | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 };

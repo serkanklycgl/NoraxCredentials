@@ -892,7 +892,18 @@ function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/10">
-                        {filteredCredentials.map((cred, idx) => (
+                        {filteredCredentials.map((cred, idx) => {
+                          const canReveal = cred.canViewSecret !== false;
+                          const revealed = canReveal && revealedId === cred.id;
+                          const hiddenLabel = '********';
+                          const toggleReveal = () => {
+                            if (!canReveal) return;
+                            setRevealedId((prev) => (prev === cred.id ? null : cred.id));
+                          };
+                          const revealButtonClass = `flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!canReveal ? 'opacity-50 cursor-not-allowed' : ''}`;
+                          const revealButtonTitle = !canReveal ? 'Yetki yok' : revealed ? 'Gizle' : 'Göster';
+
+                          return (
                           <tr
                             key={cred.id}
                             className={`text-sm text-slate-200 ${idx % 2 === 0 ? 'bg-white/2' : 'bg-white/[0.03]'}`}
@@ -904,18 +915,18 @@ function App() {
                                   <p className="text-xs text-slate-400">{cred.accountFirstName} {cred.accountLastName}</p>
                                 </td>
                                 <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
-                                  {revealedId === cred.id ? cred.appLink ?? '—' : '********'}
+                                  {revealed ? cred.appLink ?? '—' : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-200">
-                                  {revealedId === cred.id ? cred.accountEmail ?? '—' : '********'}
+                                  {revealed ? cred.accountEmail ?? '—' : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-200">
-                                  {revealedId === cred.id ? cred.accountRole ?? '—' : '********'}
+                                  {revealed ? cred.accountRole ?? '—' : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-100">
                                   {cred.password ? (
                                     <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
-                                      {revealedId === cred.id ? cred.password : '********'}
+                                      {revealed ? cred.password : hiddenLabel}
                                     </span>
                                   ) : (
                                     '—'
@@ -927,15 +938,18 @@ function App() {
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
-                                      title={revealedId === cred.id ? 'Gizle' : 'Göster'}
-                                      onClick={() => setRevealedId((prev) => (prev === cred.id ? null : cred.id))}
+                                      className={revealButtonClass}
+                                      title={revealButtonTitle}
+                                      disabled={!canReveal}
+                                      onClick={toggleReveal}
                                     >
-                                      {revealedId === cred.id ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                      {revealed ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
                                       onClick={() => {
+                                        if (!isAdmin) return;
                                         setEditingCredential(cred);
                                         setModalOpen(true);
                                       }}
@@ -944,41 +958,45 @@ function App() {
                                       <HiOutlinePencil className="text-lg" />
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10"
-                                  onClick={() => handleDeleteCredential(cred.id)}
-                                  title="Sil"
-                                >
-                                  <HiOutlineTrash className="text-lg" />
-                                </button>
-                              </div>
-                            </td>
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        handleDeleteCredential(cred.id);
+                                      }}
+                                      title="Sil"
+                                    >
+                                      <HiOutlineTrash className="text-lg" />
+                                    </button>
+                                  </div>
+                                </td>
                               </>
                             ) : isServerCategory ? (
                               <>
                                 <td className="px-4 py-3">
                                   <div className="font-semibold text-white">{cred.name}</div>
-                                  <p className="text-xs text-slate-400">{revealedId === cred.id ? cred.notes : '********'}</p>
+                                  <p className="text-xs text-slate-400">{revealed ? cred.notes : hiddenLabel}</p>
                                 </td>
-                                <td className="px-4 py-3">{revealedId === cred.id ? cred.hostOrUrl : '********'}</td>
-                                <td className="px-4 py-3">{revealedId === cred.id ? cred.username : '********'}</td>
+                                <td className="px-4 py-3">{revealed ? cred.hostOrUrl : hiddenLabel}</td>
+                                <td className="px-4 py-3">{revealed ? cred.username : hiddenLabel}</td>
                                 <td className="px-4 py-3 text-xs text-slate-100">
                                   {cred.password ? (
                                     <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
-                                      {revealedId === cred.id ? cred.password : '********'}
+                                      {revealed ? cred.password : hiddenLabel}
                                     </span>
                                   ) : (
                                     '—'
                                   )}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-200">
-                                  {revealedId === cred.id
+                                  {revealed
                                     ? cred.serverVpnRequired
                                       ? 'Evet'
                                       : 'Hayır'
-                                    : '********'}
+                                    : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
-                                  {revealedId === cred.id ? cred.notes ?? '—' : '********'}
+                                  {revealed ? cred.notes ?? '—' : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-400">
                                   {new Date(cred.updatedAtUtc).toLocaleString()}
@@ -986,15 +1004,18 @@ function App() {
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
-                                      title={revealedId === cred.id ? 'Gizle' : 'Göster'}
-                                      onClick={() => setRevealedId((prev) => (prev === cred.id ? null : cred.id))}
+                                      className={revealButtonClass}
+                                      title={revealButtonTitle}
+                                      disabled={!canReveal}
+                                      onClick={toggleReveal}
                                     >
-                                      {revealedId === cred.id ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                      {revealed ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
                                       onClick={() => {
+                                        if (!isAdmin) return;
                                         setEditingCredential(cred);
                                         setModalOpen(true);
                                       }}
@@ -1003,8 +1024,12 @@ function App() {
                                       <HiOutlinePencil className="text-lg" />
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10"
-                                      onClick={() => handleDeleteCredential(cred.id)}
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        handleDeleteCredential(cred.id);
+                                      }}
                                       title="Sil"
                                     >
                                       <HiOutlineTrash className="text-lg" />
@@ -1019,13 +1044,13 @@ function App() {
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-200">{cred.appName || '—'}</td>
                                 <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
-                                  {revealedId === cred.id ? cred.hostOrUrl ?? '—' : '********'}
+                                  {revealed ? cred.hostOrUrl ?? '—' : hiddenLabel}
                                 </td>
-                                <td className="px-4 py-3">{revealedId === cred.id ? cred.username ?? '—' : '********'}</td>
+                                <td className="px-4 py-3">{revealed ? cred.username ?? '—' : hiddenLabel}</td>
                                 <td className="px-4 py-3 text-xs text-slate-100">
                                   {cred.password ? (
                                     <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
-                                      {revealedId === cred.id ? cred.password : '********'}
+                                      {revealed ? cred.password : hiddenLabel}
                                     </span>
                                   ) : (
                                     '—'
@@ -1033,11 +1058,11 @@ function App() {
                                 </td>
                                 <td className="px-4 py-3 max-w-[240px] text-xs text-slate-200">
                                   <div className="break-all">
-                                    {revealedId === cred.id ? cred.connectionString ?? '—' : '********'}
+                                    {revealed ? cred.connectionString ?? '—' : hiddenLabel}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
-                                  {revealedId === cred.id ? cred.notes ?? '—' : '********'}
+                                  {revealed ? cred.notes ?? '—' : hiddenLabel}
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-400">
                                   {new Date(cred.updatedAtUtc).toLocaleString()}
@@ -1045,15 +1070,18 @@ function App() {
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
-                                      title={revealedId === cred.id ? 'Gizle' : 'Göster'}
-                                      onClick={() => setRevealedId((prev) => (prev === cred.id ? null : cred.id))}
+                                      className={revealButtonClass}
+                                      title={revealButtonTitle}
+                                      disabled={!canReveal}
+                                      onClick={toggleReveal}
                                     >
-                                      {revealedId === cred.id ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                      {revealed ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
                                       onClick={() => {
+                                        if (!isAdmin) return;
                                         setEditingCredential(cred);
                                         setModalOpen(true);
                                       }}
@@ -1062,8 +1090,12 @@ function App() {
                                       <HiOutlinePencil className="text-lg" />
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10"
-                                      onClick={() => handleDeleteCredential(cred.id)}
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        handleDeleteCredential(cred.id);
+                                      }}
                                       title="Sil"
                                     >
                                       <HiOutlineTrash className="text-lg" />
@@ -1077,12 +1109,12 @@ function App() {
                                   <div className="font-semibold text-white">{cred.name}</div>
                                   <p className="text-xs text-slate-400">{cred.notes}</p>
                                 </td>
-                                <td className="px-4 py-3">{revealedId === cred.id ? cred.hostOrUrl : '********'}</td>
-                                <td className="px-4 py-3">{revealedId === cred.id ? cred.username : '********'}</td>
+                                <td className="px-4 py-3">{revealed ? cred.hostOrUrl : hiddenLabel}</td>
+                                <td className="px-4 py-3">{revealed ? cred.username : hiddenLabel}</td>
                                 <td className="px-4 py-3 text-xs text-slate-100">
                                   {cred.password ? (
                                     <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
-                                      {revealedId === cred.id ? cred.password : '********'}
+                                      {revealed ? cred.password : hiddenLabel}
                                     </span>
                                   ) : (
                                     '—'
@@ -1090,7 +1122,7 @@ function App() {
                                 </td>
                                 <td className="px-4 py-3 max-w-[260px] text-xs text-slate-200">
                                   <div className="break-all" title={cred.connectionString ?? ''}>
-                                    {revealedId === cred.id ? cred.connectionString ?? '—' : '********'}
+                                    {revealed ? cred.connectionString ?? '—' : hiddenLabel}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 text-xs text-slate-400">
@@ -1099,15 +1131,18 @@ function App() {
                                 <td className="px-4 py-3">
                                   <div className="flex justify-end gap-2">
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
-                                      title={revealedId === cred.id ? 'Gizle' : 'Göster'}
-                                      onClick={() => setRevealedId((prev) => (prev === cred.id ? null : cred.id))}
+                                      className={revealButtonClass}
+                                      title={revealButtonTitle}
+                                      disabled={!canReveal}
+                                      onClick={toggleReveal}
                                     >
-                                      {revealedId === cred.id ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                      {revealed ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
                                       onClick={() => {
+                                        if (!isAdmin) return;
                                         setEditingCredential(cred);
                                         setModalOpen(true);
                                       }}
@@ -1116,8 +1151,12 @@ function App() {
                                       <HiOutlinePencil className="text-lg" />
                                     </button>
                                     <button
-                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10"
-                                      onClick={() => handleDeleteCredential(cred.id)}
+                                      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                      disabled={!isAdmin}
+                                      onClick={() => {
+                                        if (!isAdmin) return;
+                                        handleDeleteCredential(cred.id);
+                                      }}
                                       title="Sil"
                                     >
                                       <HiOutlineTrash className="text-lg" />
@@ -1127,7 +1166,8 @@ function App() {
                               </>
                             )}
                           </tr>
-                        ))}
+                        );
+                        })}
                         {filteredCredentials.length === 0 ? (
                           <tr>
                             <td
