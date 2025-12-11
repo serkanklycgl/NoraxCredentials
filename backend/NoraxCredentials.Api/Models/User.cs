@@ -18,4 +18,6 @@ public class User
     public string Role { get; set; } = "Admin";
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public ICollection<UserCredentialAccess> CredentialAccesses { get; set; } = new List<UserCredentialAccess>();
 }

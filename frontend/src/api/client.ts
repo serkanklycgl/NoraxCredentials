@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Category, Credential, UserProfile, AuthResponse } from '@/types';
+import { Category, Credential, UserProfile, AuthResponse, ManagedUser } from '@/types';
 
 let dynamicApiKey: string | undefined = import.meta.env.VITE_API_KEY ?? 'norax-dev-key';
 let authToken: string | undefined;
@@ -89,5 +89,32 @@ export const registerUser = async (payload: { email: string; password: string; r
 
 export const getMe = async (): Promise<UserProfile> => {
   const { data } = await api.get<UserProfile>('/auth/me');
+  return data;
+};
+
+export const getUsers = async (): Promise<ManagedUser[]> => {
+  const { data } = await api.get<ManagedUser[]>('/users');
+  return data;
+};
+
+export const createManagedUser = async (payload: { email: string; password: string; role?: string }) => {
+  const { data } = await api.post<ManagedUser>('/users', payload);
+  return data;
+};
+
+export const updateManagedUser = async (
+  id: string,
+  payload: { email: string; role: string; password?: string },
+) => {
+  const { data } = await api.put<ManagedUser>(`/users/${id}`, payload);
+  return data;
+};
+
+export const deleteManagedUser = async (id: string) => {
+  await api.delete(`/users/${id}`);
+};
+
+export const updateUserAccess = async (id: string, credentialIds: string[]) => {
+  const { data } = await api.put<ManagedUser>(`/users/${id}/access`, { credentialIds });
   return data;
 };

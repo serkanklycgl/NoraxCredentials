@@ -5,6 +5,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<CredentialItem> Credentials => Set<CredentialItem>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserCredentialAccess> UserCredentialAccesses => Set<UserCredentialAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +30,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        modelBuilder.Entity<UserCredentialAccess>()
+            .HasKey(uca => new { uca.UserId, uca.CredentialId });
+
+        modelBuilder.Entity<UserCredentialAccess>()
+            .HasOne(uca => uca.User)
+            .WithMany(u => u.CredentialAccesses)
+            .HasForeignKey(uca => uca.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserCredentialAccess>()
+            .HasOne(uca => uca.Credential)
+            .WithMany(c => c.CredentialAccesses)
+            .HasForeignKey(uca => uca.CredentialId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Category>().HasData(
             new Category

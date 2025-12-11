@@ -34,3 +34,10 @@ export type AuthResponse = {
   token: string;
   user: UserProfile;
 };
+
+export type ManagedUser = {
+  id: string;
+  email: string;
+  role: string;
+  credentialIds: string[];
+};

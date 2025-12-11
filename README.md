@@ -38,6 +38,12 @@ API başlangıcında `EnsureCreated` çağrısı ile tablo yoksa oluşturur. See
 - `POST /api/credentials` – kayıt oluştur (parola/connection string şifrelenir)
 - `PUT /api/credentials/{id}` – güncelle
 - `DELETE /api/credentials/{id}` – sil
+- Kullanıcı Yönetimi (Admin):
+  - `GET /api/users` – kullanıcıları listele
+  - `POST /api/users` – kullanıcı oluştur
+  - `PUT /api/users/{id}` – kullanıcı güncelle (parola boş bırakılırsa değişmez)
+  - `DELETE /api/users/{id}` – sil
+  - `PUT /api/users/{id}/access` – hangi credential kayıtlarına erişebileceğini ata
 
 ## Frontend
 ```bash

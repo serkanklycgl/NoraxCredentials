@@ -77,6 +77,25 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserCredentialAccesses]') AND type IN (N'U'))
+BEGIN
+    CREATE TABLE [dbo].[UserCredentialAccesses](
+        [UserId] UNIQUEIDENTIFIER NOT NULL,
+        [CredentialId] UNIQUEIDENTIFIER NOT NULL,
+        [GrantedAtUtc] DATETIME2 NOT NULL CONSTRAINT DF_UserCredentialAccesses_Granted DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT [PK_UserCredentialAccesses] PRIMARY KEY ([UserId], [CredentialId])
+    );
+
+    ALTER TABLE [dbo].[UserCredentialAccesses] WITH CHECK ADD CONSTRAINT [FK_UserCredentialAccesses_Users] FOREIGN KEY([UserId])
+        REFERENCES [dbo].[Users] ([Id]) ON DELETE CASCADE;
+
+    ALTER TABLE [dbo].[UserCredentialAccesses] WITH CHECK ADD CONSTRAINT [FK_UserCredentialAccesses_Credentials] FOREIGN KEY([CredentialId])
+        REFERENCES [dbo].[Credentials] ([Id]) ON DELETE CASCADE;
+
+    CREATE INDEX IX_UserCredentialAccesses_CredentialId ON [dbo].[UserCredentialAccesses]([CredentialId]);
+END
+GO
+
 -- Seed base categories if they do not exist
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '70763946-c3b3-4518-aba0-2d09f5068e17')
     INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])

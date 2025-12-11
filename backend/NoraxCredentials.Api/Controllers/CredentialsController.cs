@@ -14,6 +14,16 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             query = query.Where(c => c.CategoryId == categoryId);
         }
 
+        var userId = GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && userId.HasValue)
+        {
+            var userIdValue = userId.Value;
+            query = query.Where(c =>
+                !db.UserCredentialAccesses.Any(a => a.CredentialId == c.Id) ||
+                db.UserCredentialAccesses.Any(a => a.CredentialId == c.Id && a.UserId == userIdValue));
+        }
+
         var items = await query
             .OrderByDescending(c => c.UpdatedAtUtc)
             .ToListAsync();
@@ -28,6 +38,22 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
         if (entity is null)
         {
             return NotFound();
+        }
+
+        var userId = GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && userId.HasValue)
+        {
+            var userIdValue = userId.Value;
+            var hasSpecificAssignments = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id);
+            if (hasSpecificAssignments)
+            {
+                var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userIdValue);
+                if (!allowed)
+                {
+                    return Forbid();
+                }
+            }
         }
 
         return MapToDto(entity);
@@ -78,6 +104,21 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             return NotFound();
         }
 
+        var userId = GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && userId.HasValue)
+        {
+            var hasSpecificAssignments = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id);
+            if (hasSpecificAssignments)
+            {
+                var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userId.Value);
+                if (!allowed)
+                {
+                    return Forbid();
+                }
+            }
+        }
+
         var categoryExists = await db.Categories.AnyAsync(c => c.Id == dto.CategoryId);
         if (!categoryExists)
         {
@@ -113,6 +154,21 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             return NotFound();
         }
 
+        var userId = GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && userId.HasValue)
+        {
+            var hasSpecificAssignments = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id);
+            if (hasSpecificAssignments)
+            {
+                var allowed = await db.UserCredentialAccesses.AnyAsync(a => a.CredentialId == id && a.UserId == userId.Value);
+                if (!allowed)
+                {
+                    return Forbid();
+                }
+            }
+        }
+
         db.Credentials.Remove(item);
         await db.SaveChangesAsync();
         return NoContent();
@@ -138,4 +194,10 @@ public class CredentialsController(ApplicationDbContext db, IEncryptionService e
             entity.CreatedAtUtc,
             entity.UpdatedAtUtc
         );
+
+    private Guid? GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        return Guid.TryParse(userIdClaim, out var id) ? id : null;
+    }
 }
