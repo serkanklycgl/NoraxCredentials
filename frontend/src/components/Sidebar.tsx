@@ -11,7 +11,8 @@ type Props = {
 const iconForCategory = (name: string) => {
   const normalized = name.toLowerCase();
   if (normalized.includes('sunucu') || normalized.includes('server')) return <HiOutlineServer />;
-  if (normalized.includes('üçüncü') || normalized.includes('3')) return <HiOutlineCloud />;
+  if (normalized.includes('dış') || normalized.includes('dis') || normalized.includes('external') || normalized.includes('üçüncü') || normalized.includes('3'))
+    return <HiOutlineCloud />;
   if (normalized.includes('iç') || normalized.includes('internal')) return <HiOutlineShieldCheck />;
   return <HiOutlineKey />;
 };

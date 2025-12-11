@@ -23,7 +23,7 @@ Varsayılan URL: `https://localhost:7248` (`http://localhost:5248` de açık). S
 - `ApiKey` – `X-API-KEY` header değeri; boş bırakılırsa kontrol pasif olur.
 - `Jwt` – `Key` (32+ byte), `Issuer`, `Audience`, `TokenLifetimeMinutes`.
 
-API başlangıcında `EnsureCreated` çağrısı ile tablo yoksa oluşturur. Seed kategoriler: Sunucu Bilgileri, Üçüncü Parti Uygulamalar, İç Uygulamalar.
+API başlangıcında `EnsureCreated` çağrısı ile tablo yoksa oluşturur. Seed kategoriler: Sunucular, Veri Tabanları, İç Uygulamalar, Dış Uygulamalar.
 
 ### Uçlar (özet)
 - Auth:  

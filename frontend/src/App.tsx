@@ -38,6 +38,7 @@ type CredentialForm = {
 
 const INTERNAL_CATEGORY_ID = '5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a';
 const SERVER_CATEGORY_ID = '70763946-c3b3-4518-aba0-2d09f5068e17';
+const EXTERNAL_CATEGORY_ID = '1510d449-f3ae-4ec9-97a7-efb4d7741d97';
 
 const initialCredentialForm: CredentialForm = {
   categoryId: '',
@@ -112,6 +113,18 @@ function App() {
       selectedCategory?.id === SERVER_CATEGORY_ID ||
       name.includes('sunucu') ||
       name.includes('server')
+    );
+  }, [selectedCategory]);
+  const isExternalCategory = useMemo(() => {
+    const name = selectedCategory?.name.toLowerCase() ?? '';
+    return (
+      selectedCategory?.id === EXTERNAL_CATEGORY_ID ||
+      name.includes('dış') ||
+      name.includes('dis') ||
+      name.includes('external') ||
+      name.includes('3.') ||
+      name.includes('üçüncü') ||
+      name.includes('ucuncu')
     );
   }, [selectedCategory]);
 
@@ -420,6 +433,18 @@ function App() {
                               <th className="px-4 py-3">Güncel</th>
                               <th className="px-4 py-3 text-right">Aksiyon</th>
                             </>
+                          ) : isExternalCategory ? (
+                            <>
+                              <th className="px-4 py-3">Ad</th>
+                              <th className="px-4 py-3">Sağlayıcı</th>
+                              <th className="px-4 py-3">URL</th>
+                              <th className="px-4 py-3">Kullanıcı / E-Posta</th>
+                              <th className="px-4 py-3">Şifre</th>
+                              <th className="px-4 py-3">API Key</th>
+                              <th className="px-4 py-3">Notlar</th>
+                              <th className="px-4 py-3">Güncel</th>
+                              <th className="px-4 py-3 text-right">Aksiyon</th>
+                            </>
                           ) : (
                             <>
                               <th className="px-4 py-3">Ad</th>
@@ -554,6 +579,65 @@ function App() {
                                   </div>
                                 </td>
                               </>
+                            ) : isExternalCategory ? (
+                              <>
+                                <td className="px-4 py-3">
+                                  <div className="font-semibold text-white">{cred.name}</div>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-200">{cred.appName || '—'}</td>
+                                <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
+                                  {revealedId === cred.id ? cred.hostOrUrl ?? '—' : '********'}
+                                </td>
+                                <td className="px-4 py-3">{revealedId === cred.id ? cred.username ?? '—' : '********'}</td>
+                                <td className="px-4 py-3 text-xs text-slate-100">
+                                  {cred.password ? (
+                                    <span className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[11px] text-primary-light">
+                                      {revealedId === cred.id ? cred.password : '********'}
+                                    </span>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 max-w-[240px] text-xs text-slate-200">
+                                  <div className="break-all">
+                                    {revealedId === cred.id ? cred.connectionString ?? '—' : '********'}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 max-w-[200px] text-xs text-slate-300 break-all">
+                                  {revealedId === cred.id ? cred.notes ?? '—' : '********'}
+                                </td>
+                                <td className="px-4 py-3 text-xs text-slate-400">
+                                  {new Date(cred.updatedAtUtc).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      title={revealedId === cred.id ? 'Gizle' : 'Göster'}
+                                      onClick={() => setRevealedId((prev) => (prev === cred.id ? null : cred.id))}
+                                    >
+                                      {revealedId === cred.id ? <HiOutlineEyeOff className="text-lg" /> : <HiOutlineEye className="text-lg" />}
+                                    </button>
+                                    <button
+                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:border-primary/50"
+                                      onClick={() => {
+                                        setEditingCredential(cred);
+                                        setModalOpen(true);
+                                      }}
+                                      title="Düzenle"
+                                    >
+                                      <HiOutlinePencil className="text-lg" />
+                                    </button>
+                                    <button
+                                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/40 bg-white/5 text-red-200 hover:text-white hover:border-red-500/60 hover:bg-red-500/10"
+                                      onClick={() => handleDeleteCredential(cred.id)}
+                                      title="Sil"
+                                    >
+                                      <HiOutlineTrash className="text-lg" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
                             ) : (
                               <>
                                 <td className="px-4 py-3">
@@ -614,7 +698,7 @@ function App() {
                         {filteredCredentials.length === 0 ? (
                           <tr>
                             <td
-                              colSpan={isInternalCategory ? 7 : isServerCategory ? 8 : 7}
+                              colSpan={isInternalCategory ? 7 : isServerCategory ? 8 : isExternalCategory ? 9 : 7}
                               className="px-4 py-6 text-center text-slate-400"
                             >
                               Henüz kayıt yok. Sağ üstteki <span className="font-semibold text-primary">Yeni Kayıt</span> butonunu kullanın.
@@ -783,6 +867,70 @@ function App() {
                       />
                       <span className="text-sm text-white/80">VPN bağlantısı gerekiyor</span>
                     </div>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Notlar</label>
+                    <textarea
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      rows={2}
+                      value={editingCredential.notes ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, notes: e.target.value })}
+                    />
+                  </div>
+                </>
+              ) : isExternalCategory ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Ad</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.name}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Sağlayıcı</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.appName ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, appName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">URL</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.hostOrUrl ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, hostOrUrl: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Kullanıcı Adı / E-Posta</label>
+                    <input
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.username ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, username: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Şifre</label>
+                    <input
+                      type="password"
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      value={editingCredential.password ?? ''}
+                      onChange={(e) => setEditingCredential((prev) => prev && { ...prev, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs uppercase tracking-wide text-slate-400">API Key (Opsiyonel)</label>
+                    <textarea
+                      className="w-full rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                      rows={2}
+                      value={editingCredential.connectionString ?? ''}
+                      onChange={(e) =>
+                        setEditingCredential((prev) => prev && { ...prev, connectionString: e.target.value })
+                      }
+                    />
                   </div>
                   <div className="space-y-1 md:col-span-2">
                     <label className="text-xs uppercase tracking-wide text-slate-400">Notlar</label>

@@ -34,20 +34,30 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             new Category
             {
                 Id = Guid.Parse("70763946-c3b3-4518-aba0-2d09f5068e17"),
-                Name = "Sunucu Bilgileri",
-                Description = "RDP, SSH, DB erişimleri"
+                Name = "Sunucular",
+                Description = "RDP, SSH, DB erişimleri",
+                SortOrder = 1
+            },
+            new Category
+            {
+                Id = Guid.Parse("65f9fbfc-a0d1-4f42-ac9f-f703beb6b624"),
+                Name = "Veri Tabanları",
+                Description = "SQL, NoSQL ve veri ambarı erişimleri",
+                SortOrder = 2
             },
             new Category
             {
                 Id = Guid.Parse("1510d449-f3ae-4ec9-97a7-efb4d7741d97"),
-                Name = "Üçüncü Parti Uygulamalar",
-                Description = "ChatGPT, Exchange, İsimTescil vb."
+                Name = "Dış Uygulamalar",
+                Description = "ChatGPT, Exchange, İsimTescil vb.",
+                SortOrder = 4
             },
             new Category
             {
                 Id = Guid.Parse("5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a"),
                 Name = "İç Uygulamalar",
-                Description = "Şirket içi yazılımlar ve servis hesapları"
+                Description = "Şirket içi yazılımlar ve servis hesapları",
+                SortOrder = 3
             }
         );
     }

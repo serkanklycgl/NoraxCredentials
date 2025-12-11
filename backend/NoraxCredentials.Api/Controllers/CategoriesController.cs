@@ -9,7 +9,8 @@ public class CategoriesController(ApplicationDbContext db) : ControllerBase
     public async Task<ActionResult<IEnumerable<CategoryResponseDto>>> GetAll()
     {
         var categories = await db.Categories
-            .OrderBy(c => c.Name)
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Name)
             .Select(c => new CategoryResponseDto(c.Id, c.Name, c.Description))
             .ToListAsync();
 

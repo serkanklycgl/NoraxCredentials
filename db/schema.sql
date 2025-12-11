@@ -6,7 +6,8 @@ BEGIN
     CREATE TABLE [dbo].[Categories](
         [Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
         [Name] NVARCHAR(100) NOT NULL UNIQUE,
-        [Description] NVARCHAR(500) NULL
+        [Description] NVARCHAR(500) NULL,
+        [SortOrder] INT NOT NULL CONSTRAINT DF_Categories_SortOrder DEFAULT 99
     );
 END
 GO
@@ -57,6 +58,13 @@ IF COL_LENGTH('dbo.Credentials', 'ServerVpnRequired') IS NULL
     ALTER TABLE [dbo].[Credentials] ADD [ServerVpnRequired] BIT NULL;
 GO
 
+-- Ensure sort order column exists for categories
+IF COL_LENGTH('dbo.Categories', 'SortOrder') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Categories] ADD [SortOrder] INT NOT NULL CONSTRAINT DF_Categories_SortOrder DEFAULT 99;
+END
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type IN (N'U'))
 BEGIN
     CREATE TABLE [dbo].[Users](
@@ -71,23 +79,28 @@ GO
 
 -- Seed base categories if they do not exist
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '70763946-c3b3-4518-aba0-2d09f5068e17')
-    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description])
-    VALUES ('70763946-c3b3-4518-aba0-2d09f5068e17', N'Sunucular', N'RDP, SSH, DB erişimleri');
+    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
+    VALUES ('70763946-c3b3-4518-aba0-2d09f5068e17', N'Sunucular', N'RDP, SSH, DB erişimleri', 1);
 ELSE
-    UPDATE [dbo].[Categories] SET [Name] = N'Sunucular' WHERE [Id] = '70763946-c3b3-4518-aba0-2d09f5068e17';
-
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '1510d449-f3ae-4ec9-97a7-efb4d7741d97')
-    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description])
-    VALUES ('1510d449-f3ae-4ec9-97a7-efb4d7741d97', N'Üçüncü Parti Uygulamalar', N'ChatGPT, Exchange, İsimTescil vb.');
-
-IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a')
-    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description])
-    VALUES ('5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a', N'İç Uygulamalar', N'Şirket içi yazılımlar ve servis hesapları');
-GO
+    UPDATE [dbo].[Categories] SET [Name] = N'Sunucular', [SortOrder] = 1 WHERE [Id] = '70763946-c3b3-4518-aba0-2d09f5068e17';
 
 IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '65f9fbfc-a0d1-4f42-ac9f-f703beb6b624')
-    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description])
-    VALUES ('65f9fbfc-a0d1-4f42-ac9f-f703beb6b624', N'Veri Tabanları', N'SQL, NoSQL ve veri ambarı erişimleri');
+    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
+    VALUES ('65f9fbfc-a0d1-4f42-ac9f-f703beb6b624', N'Veri Tabanları', N'SQL, NoSQL ve veri ambarı erişimleri', 2);
+ELSE
+    UPDATE [dbo].[Categories] SET [Name] = N'Veri Tabanları', [SortOrder] = 2 WHERE [Id] = '65f9fbfc-a0d1-4f42-ac9f-f703beb6b624';
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a')
+    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
+    VALUES ('5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a', N'İç Uygulamalar', N'Şirket içi yazılımlar ve servis hesapları', 3);
+ELSE
+    UPDATE [dbo].[Categories] SET [Name] = N'İç Uygulamalar', [SortOrder] = 3 WHERE [Id] = '5e191328-f4a1-4dc1-8ae2-cd7a0ee9102a';
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Id] = '1510d449-f3ae-4ec9-97a7-efb4d7741d97')
+    INSERT INTO [dbo].[Categories] ([Id], [Name], [Description], [SortOrder])
+    VALUES ('1510d449-f3ae-4ec9-97a7-efb4d7741d97', N'Dış Uygulamalar', N'ChatGPT, Exchange, İsimTescil vb.', 4);
+ELSE
+    UPDATE [dbo].[Categories] SET [Name] = N'Dış Uygulamalar', [SortOrder] = 4 WHERE [Id] = '1510d449-f3ae-4ec9-97a7-efb4d7741d97';
 GO
 
 -- Seed admin user (email: admin@norax.com, password: NoraxAdmin!2024)

@@ -13,5 +13,7 @@ public class Category
     [MaxLength(500)]
     public string? Description { get; set; }
 
+    public int SortOrder { get; set; } = 99;
+
     public ICollection<CredentialItem> Credentials { get; set; } = new List<CredentialItem>();
 }
