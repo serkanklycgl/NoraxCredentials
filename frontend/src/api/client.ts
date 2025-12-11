@@ -13,7 +13,8 @@ export const setAuthToken = (token?: string) => {
 };
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5248/api',
+  //baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5248/api',
+  baseURL: 'http://10.41.17.3:6002/api',
 });
 
 api.interceptors.request.use((config) => {
